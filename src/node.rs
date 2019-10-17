@@ -7,16 +7,6 @@ struct Node {
     right: Option<Box<Rope>>,
 }
 
-// impl Node {
-//     fn new(left: Box<Rope>, right: Box<Rope>, weight: usize) > Node{
-// 	Node{
-// 	    left: Some(left),
-// 	    right: Some(right),
-// 	    weight: weight,
-// 	}
-//     }
-// }
-
 #[derive(Debug)]
 struct Leaf {
     buf: Rc<String>,
@@ -40,21 +30,23 @@ impl Leaf {
 
     fn split(&self, offset: usize) -> (Leaf, Leaf) {
         if offset == 0 {
-            return (
-		Leaf::new(""),
-		Leaf::new(&self.buf.as_ref().clone()),
-            );
-	}
-	
-	if offset >= self.weight() {
-            return (
-		Leaf::new(&self.buf.as_ref().clone()),
-		Leaf::new(""),
-            );
+            return (Leaf::new(""), Leaf::new(&self.buf.as_ref().clone()));
         }
-	
-	let (left, right) = self.buf.split_at(self.start + offset);
+
+        if offset >= self.weight() {
+            return (Leaf::new(&self.buf.as_ref().clone()), Leaf::new(""));
+        }
+
+        let (left, right) = self.buf.split_at(self.start + offset);
         ((Leaf::new(left)), Leaf::new(right))
+    }
+
+    fn report(&self, start: usize, end: usize) -> Option<String> {
+        // println!("buf: {:?}, start: {:?}, end: {:?}, actual_start: {:?}, actual_end: {:?}", self.buf, self.start, self.end, start, end);
+        if start >= self.start && end <= self.end {
+            return Some(self.buf[start..end + 1].to_string());
+        }
+        None
     }
 }
 
@@ -70,10 +62,10 @@ impl Rope {
     }
 
     fn buf(&self) -> Option<&str> {
-	match self {
-	    Rope::Node(node)=> None,
-	    Rope::Leaf(leaf) => Some(&leaf.buf),
-	}
+        match self {
+            Rope::Node(node) => None,
+            Rope::Leaf(leaf) => Some(&leaf.buf),
+        }
     }
 
     fn index(&self, i: usize) -> Option<char> {
@@ -126,54 +118,85 @@ impl Rope {
         }
     }
 
-    fn join(r: Box<Rope>, s: Box<Rope>) -> Rope {
+    fn join(left: Box<Rope>, right: Box<Rope>) -> Rope {
         Rope::Node(Node {
-            weight: r.length(),
-            left: Some(r),
-            right: Some(s),
+            weight: left.length(),
+            left: Some(left),
+            right: Some(right),
         })
     }
 
     fn split(&mut self, offset: usize) -> (Rope, Rope) {
         match self {
             Rope::Leaf(leaf) => {
-		let (l, r) = leaf.split(offset);
-		return (Rope::Leaf(l), Rope::Leaf(r))
+                let (l, r) = leaf.split(offset);
+                return (Rope::Leaf(l), Rope::Leaf(r));
             }
             Rope::Node(node) => {
-		let w = node.weight;
+                let w = node.weight;
 
-		// < not <= because w - always length of the string (offset -1)
+                // < not <= because w - always length of the string (offset -1)
                 if offset < w {
-		    let (l, r) = node.left.as_mut().expect("left child cannot be empty").split(offset);
-		    let r = Rope::join(Box::new(r), node.right.take().expect("right child cannot be empty"));
-		    return (l, r)
-                    // return node.left.as_ref().unwrap().split(offset);
+                    let (l, r) = node
+                        .left
+                        .as_mut()
+                        .expect("left child cannot be empty")
+                        .split(offset);
+                    let r = Rope::join(
+                        Box::new(r),
+                        node.right.take().expect("right child cannot be empty"),
+                    );
+                    return (l, r);
                 }
 
-		let (l, r) = node.right.as_mut().expect("right child cannot be empty").split(offset -w);
-		let l = Rope::join(Box::new(l), node.right.take().expect("left child cannot be empty"));
-		return (l, r)
+                let (l, r) = node
+                    .right
+                    .as_mut()
+                    .expect("right child cannot be empty")
+                    .split(offset - w);
+                let l = Rope::join(
+                    Box::new(l),
+                    node.right.take().expect("left child cannot be empty"),
+                );
+                return (l, r);
             }
         }
     }
 
-    // fn report(&self, start: usize, end: usize) -> String {
-    // 	let res:String;
-    // 	let b = match self {
-    // 	    Rope::Leaf(leaf) => {
-    // 		return leaf.report(start, end)
-    // 	    }
-    // 	    Rope::Node(node) => {
-    // 		let offset = node.
-    // 		if offset <= node.weight {
+    fn insert(&mut self, s: &str, offset: usize) -> Rope {
+        let (l, r) = self.split(offset);
 
-    // 		}
-    // 	    }
-    // 	}
-    // }
+        let leaf = Rope::new(s);
 
-    // fn join(&self)
+        let tmp = Rope::join(Box::new(l), Box::new(leaf));
+        let res = Rope::join(Box::new(tmp), Box::new(r));
+        return res;
+    }
+
+    fn delete(&mut self, start: usize, end: usize) -> Rope {
+        let (l, mut r) = self.split(start);
+
+        let (_, r2) = r.split(end - start + 1);
+
+        Rope::join(Box::new(l), Box::new(r2))
+    }
+
+    fn report(&self, start: usize, end: usize) -> Option<String> {
+        match self {
+            Rope::Leaf(leaf) => {
+                leaf.report(start, end)
+            }
+            Rope::Node(node) => {
+                let len = end - start + 1;
+                if len <= node.weight {
+                    return node.left.as_ref()?.report(start, end);
+                }
+                let l = node.left.as_ref()?.report(start, node.weight - 1)?;
+                let r = node.right.as_ref()?.report(0, len - node.weight - 1)?;
+                Some(l + &r)
+            }
+        }
+    }
 }
 
 #[test]
@@ -209,8 +232,35 @@ fn test_rope_join() {
 #[test]
 fn test_rope_split() {
     let mut rope = Rope::new("Hello, World!");
-    let (left, right) =  rope.split(5);
+    let (left, right) = rope.split(5);
     assert_eq!(left.buf(), Some("Hello"));
     assert_eq!(right.buf(), Some(", World!"));
-    println!("rope: {:?}, left: {:?}, right: {:?}", rope, left, right)
+}
+
+#[test]
+fn test_rope_report() {
+    let mut rope = Rope::new("Hello, World!");
+
+    assert_eq!(rope.report(1, 5).unwrap(), "ello,");
+
+    let (left, right) = rope.split(5);
+    assert_eq!(left.report(0, 4).unwrap(), "Hello");
+    assert_eq!(right.report(0, 7).unwrap(), ", World!");
+    assert_eq!(right.report(0, 8), None);
+}
+
+#[test]
+fn test_rope_insert() {
+    let mut rope = Rope::new("Hello, World!");
+
+    let rope = rope.insert(" Cruel", 6);
+
+    assert_eq!(rope.report(0, 18).unwrap(), "Hello, Cruel World!");
+}
+
+#[test]
+fn test_rope_delete() {
+    let mut rope = Rope::new("Hello, World!");
+    rope = rope.delete(2, 4);
+    assert_eq!(rope.report(0, 9).unwrap(), "He, World!");
 }
