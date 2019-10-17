@@ -69,6 +69,13 @@ impl Rope {
         Rope::Leaf(Leaf::new(s))
     }
 
+    fn buf(&self) -> Option<&str> {
+	match self {
+	    Rope::Node(node)=> None,
+	    Rope::Leaf(leaf) => Some(&leaf.buf),
+	}
+    }
+
     fn index(&self, i: usize) -> Option<char> {
         match self {
             Rope::Leaf(leaf) => return leaf.buf.chars().nth(i),
@@ -127,7 +134,7 @@ impl Rope {
         })
     }
 
-    fn split(&self, offset: usize) -> (Rope, Rope) {
+    fn split(&mut self, offset: usize) -> (Rope, Rope) {
         match self {
             Rope::Leaf(leaf) => {
 		let (l, r) = leaf.split(offset);
@@ -138,14 +145,14 @@ impl Rope {
 
 		// < not <= because w - always length of the string (offset -1)
                 if offset < w {
-		    let (l, r) = node.left.as_ref().expect("left child cannot be empty").split(offset);
-		    r = Rope::join(Box::new(r), node.right.expect("right child cannot be empty"));
+		    let (l, r) = node.left.as_mut().expect("left child cannot be empty").split(offset);
+		    let r = Rope::join(Box::new(r), node.right.take().expect("right child cannot be empty"));
 		    return (l, r)
                     // return node.left.as_ref().unwrap().split(offset);
                 }
 
-		let (l, r) = node.right.as_ref().expect("right child cannot be empty").split(offset -w);
-		l = Rope::join(Box::new(l), node.right.expect("left child cannot be empty"));
+		let (l, r) = node.right.as_mut().expect("right child cannot be empty").split(offset -w);
+		let l = Rope::join(Box::new(l), node.right.take().expect("left child cannot be empty"));
 		return (l, r)
             }
         }
@@ -199,11 +206,11 @@ fn test_rope_join() {
     assert_eq!(rope.index(12).unwrap(), '!');
 }
 
-// #[test]
-// fn test_rope_split() {
-//     let rope = Rope::New("Hello, World!");
-//     let (left, right) =  rope.split(5);
-//     assert_eq!(left.buf.to_string(), "Hello");
-//     assert_eq!(right.buf.to_string(), ", World!");
-//     println!("rope: {:?}, left: {:?}, right: {:?}", rope, left, right)
-// }
+#[test]
+fn test_rope_split() {
+    let mut rope = Rope::new("Hello, World!");
+    let (left, right) =  rope.split(5);
+    assert_eq!(left.buf(), Some("Hello"));
+    assert_eq!(right.buf(), Some(", World!"));
+    println!("rope: {:?}, left: {:?}, right: {:?}", rope, left, right)
+}
