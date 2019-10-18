@@ -36,3 +36,4 @@ fn main() {
 - [ ] Current rope implmentation becomes unbalanced too soon. Need to balance the tree
 after every `split` and `join`.
 - [ ] Cleanup a bit for proper error handling.
+- [ ] Current iterator works in O(nlogn). Improve it!
