@@ -63,7 +63,7 @@ impl Rope {
 
     fn buf(&self) -> Option<&str> {
         match self {
-            Rope::Node(node) => None,
+            Rope::Node(_) => None,
             Rope::Leaf(leaf) => Some(&leaf.buf),
         }
     }
@@ -199,6 +199,33 @@ impl Rope {
     }
 }
 
+impl IntoIterator for Rope {
+    type Item = char;
+    type IntoIter = RopeIterator;
+
+    fn into_iter(self) -> Self::IntoIter {
+	RopeIterator {
+	    rope: self,
+	    index: 0
+	}
+    }
+}
+
+struct RopeIterator {
+    rope: Rope,
+    index: usize,
+}
+
+impl Iterator for RopeIterator {
+    type Item = char;
+
+    fn next(&mut self) -> Option<Self::Item> {
+	let res = self.rope.index(self.index);
+	self.index += 1;
+	res
+    }
+}
+
 #[test]
 fn test_rope_new() {
     let rope = Rope::new("Hello, World!");
@@ -263,4 +290,19 @@ fn test_rope_delete() {
     let mut rope = Rope::new("Hello, World!");
     rope = rope.delete(2, 4);
     assert_eq!(rope.report(0, 9).unwrap(), "He, World!");
+}
+
+
+#[test]
+fn test_rope_iterator() {
+    let rope = Rope::new("Hello!");
+    let mut itr = rope.into_iter();
+
+     assert_eq!(itr.next(), Some('H'));
+     assert_eq!(itr.next(), Some('e'));
+     assert_eq!(itr.next(), Some('l'));
+     assert_eq!(itr.next(), Some('l'));
+     assert_eq!(itr.next(), Some('o'));
+     assert_eq!(itr.next(), Some('!'));
+     assert_eq!(itr.next(), None);
 }
