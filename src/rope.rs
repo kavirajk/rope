@@ -1,14 +1,14 @@
 use std::rc::Rc;
 
 #[derive(Debug)]
-struct Node {
+pub struct Node {
     weight: usize,
     left: Option<Box<Rope>>,
     right: Option<Box<Rope>>,
 }
 
 #[derive(Debug)]
-struct Leaf {
+pub struct Leaf {
     buf: Rc<String>,
     start: usize,
     end: usize,
@@ -42,7 +42,6 @@ impl Leaf {
     }
 
     fn report(&self, start: usize, end: usize) -> Option<String> {
-        // println!("buf: {:?}, start: {:?}, end: {:?}, actual_start: {:?}, actual_end: {:?}", self.buf, self.start, self.end, start, end);
         if start >= self.start && end <= self.end {
             return Some(self.buf[start..end + 1].to_string());
         }
@@ -51,13 +50,13 @@ impl Leaf {
 }
 
 #[derive(Debug)]
-enum Rope {
+pub enum Rope {
     Node(Node),
     Leaf(Leaf),
 }
 
 impl Rope {
-    fn new(s: &str) -> Rope {
+    pub fn new(s: &str) -> Rope {
         Rope::Leaf(Leaf::new(s))
     }
 
@@ -68,7 +67,7 @@ impl Rope {
         }
     }
 
-    fn index(&self, i: usize) -> Option<char> {
+    pub fn index(&self, i: usize) -> Option<char> {
         match self {
             Rope::Leaf(leaf) => return leaf.buf.chars().nth(i),
             Rope::Node(node) => {
@@ -163,7 +162,7 @@ impl Rope {
         }
     }
 
-    fn insert(&mut self, s: &str, offset: usize) -> Rope {
+    pub fn insert(&mut self, s: &str, offset: usize) -> Rope {
         let (l, r) = self.split(offset);
 
         let leaf = Rope::new(s);
@@ -173,7 +172,7 @@ impl Rope {
         return res;
     }
 
-    fn delete(&mut self, start: usize, end: usize) -> Rope {
+    pub fn delete(&mut self, start: usize, end: usize) -> Rope {
         let (l, mut r) = self.split(start);
 
         let (_, r2) = r.split(end - start + 1);
@@ -181,7 +180,7 @@ impl Rope {
         Rope::join(Box::new(l), Box::new(r2))
     }
 
-    fn report(&self, start: usize, end: usize) -> Option<String> {
+    pub fn report(&self, start: usize, end: usize) -> Option<String> {
         match self {
             Rope::Leaf(leaf) => {
                 leaf.report(start, end)
@@ -211,7 +210,7 @@ impl IntoIterator for Rope {
     }
 }
 
-struct RopeIterator {
+pub struct RopeIterator {
     rope: Rope,
     index: usize,
 }
@@ -247,8 +246,6 @@ fn test_rope_join() {
     let rope2 = Rope::new(" World!");
 
     let rope = Rope::join(Box::new(rope1), Box::new(rope2));
-
-    println!("weight: {:?}", rope.weight());
 
     assert_eq!(rope.index(1).unwrap(), 'e');
     assert_eq!(rope.index(0).unwrap(), 'H');

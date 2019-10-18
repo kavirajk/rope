@@ -1,4 +1,6 @@
-mod node;
+mod rope;
+
+pub use rope::Rope;
 
 #[cfg(test)]
 mod tests {
